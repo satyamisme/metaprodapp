@@ -12,6 +12,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, UnexpectedAlertPresentException
 
+BOOKING_URL = 'https://metaprodapp.azurewebsites.net/en/Appointments/Apply?ServiceId=1367&DepartmentId=347'
+
 def read_credentials():
     try:
         with open('credentials.txt', 'r') as file:
@@ -119,6 +121,12 @@ def login(driver, wait, civil_id, password, is_relogin=False):
             return False
     return False
 
+def ensure_booking_page(driver):
+    if driver.current_url != BOOKING_URL:
+        print(f"Detected navigation away, redirecting to booking page from {driver.current_url}")
+        driver.get(BOOKING_URL)
+        time.sleep(1)
+
 def main():
     driver = None
     sound_stop_event = None
@@ -132,7 +140,7 @@ def main():
             print("Existing booking found")
             return
 
-        driver.get('https://metaprodapp.azurewebsites.net/en/Appointments/Apply?ServiceId=1367&DepartmentId=347')
+        driver.get(BOOKING_URL)
 
         if not login(driver, wait, civil_id, password):
             print("Login stopped")
@@ -148,6 +156,7 @@ def main():
                 if not tabs:
                     print("No tabs, refresh in 8s")
                     time.sleep(8)
+                    ensure_booking_page(driver)
                     driver.refresh()
                     continue
 
@@ -183,20 +192,24 @@ def main():
                     break
 
                 time.sleep(1 if "0 booked" in driver.page_source.lower() else 8)
+                ensure_booking_page(driver)
                 driver.refresh()
 
             except Exception as e:
                 print(f"Error: {e}")
                 refresh_count += 1
                 if refresh_count >= 2:
+                    ensure_booking_page(driver)
                     if not login(driver, wait, civil_id, password, is_relogin=True):
                         if refresh_count >= 3:
                             print("Too many failures")
                             break
                     refresh_count = 0
-                    driver.get('https://metaprodapp.azurewebsites.net/en/Appointments/Apply?ServiceId=1367&DepartmentId=347')
+                    driver.get(BOOKING_URL)
                 else:
                     time.sleep(8)
+                    ensure_booking_page(driver)
+                    driver.refresh()
 
     except Exception as e:
         print(f"Critical error: {e}")
